@@ -7,13 +7,18 @@ router.get('/:username', async (req, res) => {
     if (!roblox_username) return res.json({ found: false })
 
     try {
+        const recentThreshold = new Date(Date.now() - 120000).toISOString()
+
         const { data: user } = await supabase
             .from('users')
-            .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
+            .select('whitelisted, nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
             .ilike('roblox_username', roblox_username)
             .maybeSingle()
 
-        if (!user || !user.nametag_enabled)
+        const isRecent = user && user.last_heartbeat && new Date(user.last_heartbeat) > new Date(recentThreshold)
+        const isWhitelisted = user && user.whitelisted && user.nametag_enabled
+
+        if (!user || (!isWhitelisted && !isRecent))
             return res.json({ found: false })
 
         return res.json({
