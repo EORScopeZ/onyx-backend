@@ -55,6 +55,11 @@ app.use('/set-nametag',             setNametagRoute)
 app.use('/status',                  statusRoute)
 app.use('/get-nametag',             getNametagRoute)
 
+// ── /create-key — bot calls this from .postkey command ─────────────────────
+// Maps to set-global-key since they do the same thing
+app.use('/create-key',              setGlobalKeyRoute)
+app.use('/api/create-key',          setGlobalKeyRoute)
+
 app.listen(process.env.PORT || 3000, () => {
     console.log(`Onyx backend running on port ${process.env.PORT || 3000}`)
 })
