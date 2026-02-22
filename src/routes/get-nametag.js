@@ -9,7 +9,7 @@ router.get('/:username', async (req, res) => {
     try {
         const { data: user } = await supabase
             .from('users')
-            .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, outline_color, background_color, text_color')
+            .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
             .eq('roblox_username', roblox_username)
             .maybeSingle()
 
@@ -21,10 +21,12 @@ router.get('/:username', async (req, res) => {
             active: true, // Mocked to force rendering, as active state is currently not tracked in the db heartbeat
             config: {
                 name_text: user.nametag_text,
-                name_color: user.text_color || user.nametag_color,
+                name_color: user.nametag_color,
                 tag_color: user.background_color || "#0f0f0f",
-                glow_color: user.outline_color || "#ffffff",
-                icon_image: user.tag_image || null,
+                glow_color: user.outline_color || "#8b7fff",
+                outline_color: user.outline_color || "#8b7fff",
+                image_url: user.tag_image,
+                icon_image: user.icon_image,
                 glitch_anim: user.nametag_effect === "glitch" ? true : false,
             }
         })
