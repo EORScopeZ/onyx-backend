@@ -8,7 +8,8 @@ router.post('/', async (req, res) => {
     if (!verifySecret(req))
         return res.status(403).json({ error: 'Forbidden.' })
 
-    const isUnwhitelist = req.path.includes('unwhitelist') || req.body.action === 'remove'
+    // req.path is always '/' inside a subrouter — use originalUrl instead
+    const isUnwhitelist = req.originalUrl.includes('unwhitelist') || req.body.action === 'remove'
     const roblox_username = (req.body.roblox_username || req.body.username || req.body.roblox_user || '').toLowerCase().trim()
     const discord_id      = req.body.discord_id || null
 
@@ -17,7 +18,6 @@ router.post('/', async (req, res) => {
 
     try {
         if (isUnwhitelist) {
-            // Remove whitelist — also clear HWID so they can re-bind if re-whitelisted
             const { error } = await supabase
                 .from('users')
                 .update({ whitelisted: false, hwid: null })
@@ -27,7 +27,6 @@ router.post('/', async (req, res) => {
             return res.json({ success: true, action: 'unwhitelisted', roblox_username })
         }
 
-        // Upsert user with whitelisted = true
         const { data, error } = await supabase
             .from('users')
             .upsert(
