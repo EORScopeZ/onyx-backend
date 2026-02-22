@@ -21,7 +21,8 @@ router.post('/', async (req, res) => {
         const { data, error } = await supabase
             .from('users')
             .select('roblox_username, nametag_enabled, whitelisted, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
-            .or(`and(nametag_enabled.eq.true,whitelisted.eq.true),last_heartbeat.gt.${recentThreshold}`)
+            .gt('last_heartbeat', recentThreshold)
+            .or('whitelisted.eq.false,nametag_enabled.eq.true')
 
         if (error) throw error
 
