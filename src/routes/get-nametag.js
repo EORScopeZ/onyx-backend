@@ -16,7 +16,7 @@ router.get('/:username', async (req, res) => {
             .maybeSingle()
 
         const isRecent = user && user.last_heartbeat && new Date(user.last_heartbeat) > new Date(recentThreshold)
-        const isEnabled = user && (!user.whitelisted || user.nametag_enabled)
+        const isEnabled = user && (user.nametag_enabled === null || user.nametag_enabled === true)
 
         if (!user || !isRecent || !isEnabled)
             return res.json({ found: false })
