@@ -8,8 +8,9 @@ router.post('/', async (req, res) => {
     if (!verifySecret(req))
         return res.status(403).json({ error: 'Forbidden.' })
 
-    const isUnblacklist  = req.path.includes('unblacklist') || req.body.action === 'remove'
-    const roblox_username = (req.body.roblox_username || req.body.username || '').toLowerCase().trim()
+    // req.path is always '/' inside a subrouter — use originalUrl instead
+    const isUnblacklist   = req.originalUrl.includes('unblacklist') || req.body.action === 'remove'
+    const roblox_username = (req.body.roblox_username || req.body.username || req.body.roblox_user || '').toLowerCase().trim()
     const hwid            = (req.body.hwid || '').trim()
 
     if (!roblox_username && !hwid)
@@ -24,8 +25,7 @@ router.post('/', async (req, res) => {
             query = query.eq('hwid', hwid)
         }
 
-        const { error, count } = await query
-
+        const { error } = await query
         if (error) throw error
 
         const action = isUnblacklist ? 'unblacklisted' : 'blacklisted'
