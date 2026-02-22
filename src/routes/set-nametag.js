@@ -25,7 +25,7 @@ router.post('/', async (req, res) => {
         const { error } = await supabase
             .from('users')
             .update({ nametag_enabled: false })
-            .eq('roblox_username', roblox_username)
+            .ilike('roblox_username', roblox_username)
 
         if (error) { console.error(error); return res.status(500).json({ error: 'Server error.' }) }
         return res.json({ ok: true, nametag_enabled: false })
@@ -53,7 +53,7 @@ router.post('/', async (req, res) => {
         const { error } = await supabase
             .from('users')
             .update(updates)
-            .eq('roblox_username', roblox_username)
+            .ilike('roblox_username', roblox_username)
 
         if (error) throw error
         return res.json({ ok: true, ...updates })
