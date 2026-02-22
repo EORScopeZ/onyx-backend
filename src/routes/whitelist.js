@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
             .single()
 
         if (error) throw error
-        return res.json({ success: true, action: 'whitelisted', roblox_username, user: data })
+        return res.json({ success: true, action: 'whitelisted', roblox_username, key: data?.permanent_key || null, user: data })
 
     } catch (err) {
         console.error('[whitelist]', err)
