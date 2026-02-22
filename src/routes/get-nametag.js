@@ -10,7 +10,7 @@ router.get('/:username', async (req, res) => {
         const { data: user } = await supabase
             .from('users')
             .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
-            .eq('roblox_username', roblox_username)
+            .ilike('roblox_username', roblox_username)
             .maybeSingle()
 
         if (!user || !user.nametag_enabled)
