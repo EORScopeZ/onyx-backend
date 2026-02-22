@@ -18,12 +18,11 @@ const getkeyRoute         = require('./routes/getkey')
 
 const app = express()
 
-app.set('trust proxy', 1) // Fix: required for Railway's proxy / express-rate-limit
+app.set('trust proxy', 1) // Required for Railway — fixes express-rate-limit crash
 
 app.use(cors())
 app.use(express.json())
 
-// Rate limiter — relaxed slightly for heartbeat endpoints
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 })
 app.use(limiter)
 
@@ -35,8 +34,7 @@ app.use('/api/get-nametag',         getNametagRoute)
 app.use('/api/nametags',            nametagsRoute)
 app.use('/getkey',                  getkeyRoute)
 
-// ── Bot / admin routes (require API_SECRET header) ──────────────────────────
-app.use('/whitelist',               whitelistRoute) // Also accessible at /whitelist for the bot
+// ── Bot / admin routes (/api/ prefix) ──────────────────────────────────────
 app.use('/api/whitelist',           whitelistRoute)
 app.use('/api/unwhitelist',         whitelistRoute)
 app.use('/api/blacklist',           blacklistRoute)
@@ -45,6 +43,17 @@ app.use('/api/list-whitelist',      listWhitelistRoute)
 app.use('/api/set-global-key',      setGlobalKeyRoute)
 app.use('/api/set-nametag',         setNametagRoute)
 app.use('/api/status',              statusRoute)
+
+// ── Bare routes — bot calls these without /api/ prefix ─────────────────────
+app.use('/whitelist',               whitelistRoute)
+app.use('/unwhitelist',             whitelistRoute)
+app.use('/blacklist',               blacklistRoute)
+app.use('/unblacklist',             blacklistRoute)
+app.use('/list-whitelist',          listWhitelistRoute)
+app.use('/set-global-key',          setGlobalKeyRoute)
+app.use('/set-nametag',             setNametagRoute)
+app.use('/status',                  statusRoute)
+app.use('/get-nametag',             getNametagRoute)
 
 app.listen(process.env.PORT || 3000, () => {
     console.log(`Onyx backend running on port ${process.env.PORT || 3000}`)
