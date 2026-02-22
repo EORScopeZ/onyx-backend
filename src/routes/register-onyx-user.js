@@ -2,22 +2,24 @@ const express = require('express')
 const router = express.Router()
 const supabase = require('../services/supabase')
 
-router.get('/', async (req, res) => {
+router.post('/', async (req, res) => {
+    const roblox_username = (req.body.roblox_user || req.body.username || '').toLowerCase().trim()
+    if (!roblox_username) return res.json({ ok: false, nametags: [] })
+
     try {
-        const { data, error } = await supabase
+        // 1. Record heartbeat for this user (Upsert)
+        await supabase
             .from('users')
-            .select('username')
+            .upsert({
+                roblox_username,
+                last_heartbeat: new Date().toISOString()
+            }, { onConflict: 'roblox_username' })
 
-        if (error) {
-            console.error('Error fetching registered users:', error)
-            return res.status(500).json({ error: 'Failed to fetch registered users' })
-        }
+        return res.json({ ok: true })
 
-        const usernames = data.map(user => user.username.toLowerCase())
-        res.status(200).json({ usernames })
     } catch (err) {
-        console.error('Unexpected error:', err)
-        res.status(500).json({ error: 'Internal server error' })
+        console.error('[register-onyx-user]', err)
+        return res.json({ ok: false })
     }
 })
 
