@@ -3,9 +3,10 @@ function verifySecret(req) {
     const secret = process.env.API_SECRET
     if (!secret) return false
     return (
-        req.headers['x-secret']      === secret ||
-        req.headers['authorization'] === `Bearer ${secret}` ||
-        req.body?.secret             === secret
+        req.headers['x-server-secret'] === secret ||
+        req.headers['x-secret']        === secret ||
+        req.headers['authorization']   === `Bearer ${secret}` ||
+        req.body?.secret               === secret
     )
 }
 
