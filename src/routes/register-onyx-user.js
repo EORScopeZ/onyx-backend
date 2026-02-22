@@ -1,3 +1,8 @@
+/**
+ * POST /api/register-onyx-user
+ * Called by Roblox as a heartbeat to signal a user is in-game.
+ * Returns the full nametag list so the client can update all tags at once.
+ */
 const express = require('express')
 const router = express.Router()
 const supabase = require('../services/supabase')
@@ -7,27 +12,16 @@ router.post('/', async (req, res) => {
     if (!roblox_username) return res.json({ ok: false, nametags: [] })
 
     try {
-        // 1. Record heartbeat for this user (Upsert)
-        await supabase
-            .from('users')
-            .upsert({
-                roblox_username,
-                last_heartbeat: new Date().toISOString()
-            }, { onConflict: 'roblox_username' })
-
-        // 2. Fetch nametags to show (whitelisted OR recently active)
-        const recentThreshold = new Date(Date.now() - 120000).toISOString()
-
         const { data, error } = await supabase
             .from('users')
-            .select('roblox_username, nametag_enabled, whitelisted, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
+            .select('roblox_username, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
 
         if (error) throw error
 
         const nametags = data.map(u => ({
             roblox_user: u.roblox_username,
-            name_text: u.nametag_text || (u.whitelisted ? "Onyx User" : u.roblox_username),
-            name_color: u.nametag_color || (u.whitelisted ? "#8b7fff" : "#ffffff"),
+            name_text: u.nametag_text,
+            name_color: u.nametag_color,
             tag_color: u.background_color || "#0f0f0f",
             glow_color: u.outline_color || "#8b7fff",
             outline_color: u.outline_color || "#8b7fff",
