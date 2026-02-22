@@ -12,8 +12,8 @@ const setNametagRoute = require('./routes/set-nametag')
 const getNametagRoute = require('./routes/get-nametag')
 const nametagsRoute = require('./routes/nametags')
 const registerUserRoute = require('./routes/register-onyx-user')
-const registeredUsersRoute = require('./routes/registered-users')
 const logExecutionRoute = require('./routes/log-execution')
+const supabase = require('./services/supabase') // Already required by other routes but we need it here now
 const statusRoute = require('./routes/status')
 const getkeyRoute = require('./routes/getkey')
 
@@ -32,7 +32,14 @@ app.use('/api/validate', validateRoute)
 app.use('/api/register-onyx-user', registerUserRoute)
 app.use('/api/log-execution', logExecutionRoute)
 app.use('/api/get-nametag', getNametagRoute)
-app.use('/api/registered-users', registeredUsersRoute)
+app.get('/api/registered-users', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('users').select('roblox_username')
+        if (error) return res.status(500).json({ error: error.message })
+        const usernames = data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase())
+        res.status(200).json({ usernames })
+    } catch (err) { res.status(500).json({ error: 'Internal error' }) }
+})
 app.use('/api/nametags', nametagsRoute)
 app.use('/getkey', getkeyRoute)
 
@@ -64,8 +71,14 @@ app.use('/validate-user', validateRoute)  // Lua calls this
 app.use('/validate', validateRoute)
 app.use('/log-execution', logExecutionRoute)
 app.use('/register-onyx-user', registerUserRoute)
-app.use('/registered-users', registeredUsersRoute)
-
+app.get('/registered-users', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('users').select('roblox_username')
+        if (error) return res.status(500).json({ error: error.message })
+        const usernames = data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase())
+        res.status(200).json({ usernames })
+    } catch (err) { res.status(500).json({ error: 'Internal error' }) }
+})
 app.listen(process.env.PORT || 3000, () => {
     console.log(`Onyx backend running on port ${process.env.PORT || 3000}`)
 })
