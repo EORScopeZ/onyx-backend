@@ -7,25 +7,21 @@ router.get('/:username', async (req, res) => {
     if (!roblox_username) return res.json({ found: false })
 
     try {
-        const recentThreshold = new Date(Date.now() - 120000).toISOString()
-
         const { data: user } = await supabase
             .from('users')
-            .select('whitelisted, nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
+            .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
             .ilike('roblox_username', roblox_username)
             .maybeSingle()
-
-        const isRecent = user && user.last_heartbeat && new Date(user.last_heartbeat) > new Date(recentThreshold)
 
         if (!user)
             return res.json({ found: false })
 
         return res.json({
             found: true,
-            active: true,
+            active: true, // Mocked to force rendering, as active state is currently not tracked in the db heartbeat
             config: {
-                name_text: user.nametag_text || (user.whitelisted ? "Onyx User" : roblox_username),
-                name_color: user.nametag_color || (user.whitelisted ? "#8b7fff" : "#ffffff"),
+                name_text: user.nametag_text,
+                name_color: user.nametag_color,
                 tag_color: user.background_color || "#0f0f0f",
                 glow_color: user.outline_color || "#8b7fff",
                 outline_color: user.outline_color || "#8b7fff",
