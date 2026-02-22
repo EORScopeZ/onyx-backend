@@ -3,7 +3,11 @@ const router     = express.Router()
 const supabase   = require('../services/supabase')
 const { verifySecret } = require('../middleware')
 
-router.get('/', async (req, res) => {
+// GET /status or GET /status/:key — bot calls both forms
+router.get('/', handler)
+router.get('/:key', handler)
+
+async function handler(req, res) {
     if (!verifySecret(req))
         return res.status(403).json({ error: 'Forbidden.' })
 
@@ -32,6 +36,6 @@ router.get('/', async (req, res) => {
         console.error('[status]', err)
         return res.status(500).json({ error: 'Server error.' })
     }
-})
+}
 
 module.exports = router
