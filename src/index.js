@@ -18,6 +18,8 @@ const getkeyRoute         = require('./routes/getkey')
 
 const app = express()
 
+app.set('trust proxy', 1) // Fix: required for Railway's proxy / express-rate-limit
+
 app.use(cors())
 app.use(express.json())
 
@@ -34,6 +36,7 @@ app.use('/api/nametags',            nametagsRoute)
 app.use('/getkey',                  getkeyRoute)
 
 // ── Bot / admin routes (require API_SECRET header) ──────────────────────────
+app.use('/whitelist',               whitelistRoute) // Also accessible at /whitelist for the bot
 app.use('/api/whitelist',           whitelistRoute)
 app.use('/api/unwhitelist',         whitelistRoute)
 app.use('/api/blacklist',           blacklistRoute)
