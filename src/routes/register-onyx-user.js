@@ -14,7 +14,7 @@ router.post('/', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('users')
-            .select('roblox_username, nametag_text, nametag_color, nametag_effect, tag_image, outline_color, background_color, text_color')
+            .select('roblox_username, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
             .eq('nametag_enabled', true)
             .eq('whitelisted', true)
 
@@ -24,21 +24,11 @@ router.post('/', async (req, res) => {
             roblox_user: u.roblox_username,
             name_text: u.nametag_text,
             name_color: u.nametag_color,
-            tag_color: "#0f0f0f", // fallback or fetch if existed
-            outline_color: u.nametag_effect, // Onyx V2 maps outlineColor to nametag_effect if glow_color or outline_color isn't there, but let's provide outline_color. Wait, looking at V2: `outline_color = u.nametag_effect` is wrong, effect is a boolean or string. Let's provide exactly what Onyx V2 expects.
-
-            // Re-mapping correctly based on V2 lua:
-            // displayName = cfg.name_text
-            // textColor = hexToColor3(cfg.name_color)
-            // outlineColor = hexToColor3(cfg.outline_color or cfg.glow_color)
-            // backgroundColor = hexToColor3(cfg.tag_color)
-            // glitchAnim = cfg.glitch_anim
-
-            name_text: u.nametag_text,
-            name_color: u.text_color || u.nametag_color,
             tag_color: u.background_color || "#0f0f0f",
-            glow_color: u.outline_color || "#ffffff",
-            icon_image: u.tag_image || null,
+            glow_color: u.outline_color || "#8b7fff",
+            outline_color: u.outline_color || "#8b7fff",
+            image_url: u.tag_image,
+            icon_image: u.icon_image,
             glitch_anim: u.nametag_effect === "glitch" ? true : false
         }))
 
