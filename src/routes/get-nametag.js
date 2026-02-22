@@ -7,10 +7,14 @@ router.get('/:username', async (req, res) => {
     if (!roblox_username) return res.json({ found: false })
 
     try {
+        const recentThreshold = new Date(Date.now() - 120000).toISOString()
+
         const { data: user } = await supabase
             .from('users')
-            .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
+            .select('whitelisted, nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
             .ilike('roblox_username', roblox_username)
+            .order('last_heartbeat', { ascending: false })
+            .limit(1)
             .maybeSingle()
 
         if (!user)
@@ -18,10 +22,10 @@ router.get('/:username', async (req, res) => {
 
         return res.json({
             found: true,
-            active: true, // Mocked to force rendering, as active state is currently not tracked in the db heartbeat
+            active: true,
             config: {
-                name_text: user.nametag_text,
-                name_color: user.nametag_color,
+                name_text: user.nametag_text || (user.whitelisted ? "Onyx User" : roblox_username),
+                name_color: user.nametag_color || (user.whitelisted ? "#8b7fff" : "#ffffff"),
                 tag_color: user.background_color || "#0f0f0f",
                 glow_color: user.outline_color || "#8b7fff",
                 outline_color: user.outline_color || "#8b7fff",
