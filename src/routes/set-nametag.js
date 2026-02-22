@@ -1,6 +1,6 @@
-const express    = require('express')
-const router     = express.Router()
-const supabase   = require('../services/supabase')
+const express = require('express')
+const router = express.Router()
+const supabase = require('../services/supabase')
 const { verifySecret } = require('../middleware')
 
 const HEX = /^#[0-9a-fA-F]{6}$/
@@ -36,16 +36,14 @@ router.post('/', async (req, res) => {
 
     // Map all possible field name variants from the bot
     const updates = {
-        nametag_enabled:       true,
-        nametag_text:          (cfg.nametag_text  || cfg.text  || cfg.name_text  || null),
-        nametag_color:         validHex(cfg.nametag_color || cfg.color || cfg.name_color) || '#8b7fff',
-        nametag_effect:        cfg.nametag_effect || cfg.effect || null,
-        nametag_tag_color:     validHex(cfg.tag_color)     || '#0f0f0f',
-        nametag_glow_color:    validHex(cfg.glow_color)    || '#8b7fff',
-        nametag_outline_color: validHex(cfg.outline_color) || '#8b7fff',
-        nametag_image_url:     cfg.image_url  || null,
-        nametag_icon_image:    cfg.icon_image || null,
-        nametag_glitch_anim:   cfg.glitch_anim === true || cfg.glitch_anim === 'true' || false,
+        nametag_enabled: true,
+        nametag_text: (cfg.nametag_text || cfg.text || cfg.name_text || null),
+        nametag_color: validHex(cfg.nametag_color || cfg.color || cfg.name_color) || '#8b7fff',
+        nametag_effect: (cfg.glitch_anim === true || cfg.glitch_anim === 'true') ? 'glitch' : (cfg.nametag_effect || cfg.effect || null),
+        tag_image: cfg.image_url || null,
+        icon_image: cfg.icon_image || null,
+        outline_color: validHex(cfg.outline_color || cfg.glow_color) || '#8b7fff',
+        background_color: validHex(cfg.tag_color || cfg.backgroundColor) || '#0f0f0f',
     }
 
     // Trim nametag text to 64 chars
