@@ -17,7 +17,7 @@ router.get('/:username', async (req, res) => {
 
         const isRecent = user && user.last_heartbeat && new Date(user.last_heartbeat) > new Date(recentThreshold)
 
-        if (!user || !isRecent)
+        if (!user)
             return res.json({ found: false })
 
         return res.json({
