@@ -22,7 +22,6 @@ router.post('/', async (req, res) => {
             .from('users')
             .select('roblox_username, nametag_enabled, whitelisted, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
             .gt('last_heartbeat', recentThreshold)
-            .or('nametag_enabled.is.null,nametag_enabled.eq.true')
 
         if (error) throw error
 
