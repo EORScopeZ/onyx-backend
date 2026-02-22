@@ -26,22 +26,22 @@ const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 })
 app.use(limiter)
 
 // ── Roblox / public routes ──────────────────────────────────────────────────
-app.post('/api/validate',            validateRoute)
-app.post('/api/register-onyx-user',  registerUserRoute)
-app.post('/api/log-execution',       logExecutionRoute)
-app.get( '/api/get-nametag/:username', getNametagRoute)
-app.get( '/api/nametags',            nametagsRoute)
-app.get( '/getkey',                  getkeyRoute)
+app.use('/api/validate',            validateRoute)
+app.use('/api/register-onyx-user',  registerUserRoute)
+app.use('/api/log-execution',       logExecutionRoute)
+app.use('/api/get-nametag',         getNametagRoute)
+app.use('/api/nametags',            nametagsRoute)
+app.use('/getkey',                  getkeyRoute)
 
 // ── Bot / admin routes (require API_SECRET header) ──────────────────────────
-app.post('/api/whitelist',           whitelistRoute)
-app.post('/api/unwhitelist',         whitelistRoute)   // same handler, detects action
-app.post('/api/blacklist',           blacklistRoute)
-app.post('/api/unblacklist',         blacklistRoute)   // same handler, detects action
-app.get( '/api/list-whitelist',      listWhitelistRoute)
-app.post('/api/set-global-key',      setGlobalKeyRoute)
-app.post('/api/set-nametag',         setNametagRoute)
-app.get( '/api/status',              statusRoute)
+app.use('/api/whitelist',           whitelistRoute)
+app.use('/api/unwhitelist',         whitelistRoute)
+app.use('/api/blacklist',           blacklistRoute)
+app.use('/api/unblacklist',         blacklistRoute)
+app.use('/api/list-whitelist',      listWhitelistRoute)
+app.use('/api/set-global-key',      setGlobalKeyRoute)
+app.use('/api/set-nametag',         setNametagRoute)
+app.use('/api/status',              statusRoute)
 
 app.listen(process.env.PORT || 3000, () => {
     console.log(`Onyx backend running on port ${process.env.PORT || 3000}`)
