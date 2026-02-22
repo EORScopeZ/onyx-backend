@@ -4,18 +4,16 @@ const supabase = require('../services/supabase')
 
 router.get('/', async (req, res) => {
     try {
-        const recentThreshold = new Date(Date.now() - 120000).toISOString()
-
         const { data, error } = await supabase
             .from('users')
-            .select('roblox_username, whitelisted, nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
+            .select('roblox_username, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color')
 
         if (error) throw error
 
         const nametags = data.map(u => ({
             roblox_user: u.roblox_username,
-            name_text: u.nametag_text || (u.whitelisted ? "Onyx User" : u.roblox_username),
-            name_color: u.nametag_color || (u.whitelisted ? "#8b7fff" : "#ffffff"),
+            name_text: u.nametag_text,
+            name_color: u.nametag_color,
             tag_color: u.background_color || "#0f0f0f",
             glow_color: u.outline_color || "#8b7fff",
             outline_color: u.outline_color || "#8b7fff",
