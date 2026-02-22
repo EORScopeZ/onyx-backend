@@ -9,7 +9,7 @@ router.post('/', async (req, res) => {
         return res.status(403).json({ error: 'Forbidden.' })
 
     const isUnwhitelist = req.path.includes('unwhitelist') || req.body.action === 'remove'
-    const roblox_username = (req.body.roblox_username || req.body.username || '').toLowerCase().trim()
+    const roblox_username = (req.body.roblox_username || req.body.username || req.body.roblox_user || '').toLowerCase().trim()
     const discord_id      = req.body.discord_id || null
 
     if (!roblox_username)
