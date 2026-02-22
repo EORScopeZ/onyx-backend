@@ -13,9 +13,9 @@ const getNametagRoute = require('./routes/get-nametag')
 const nametagsRoute = require('./routes/nametags')
 const registerUserRoute = require('./routes/register-onyx-user')
 const logExecutionRoute = require('./routes/log-execution')
-const supabase = require('./services/supabase') // Already required by other routes but we need it here now
 const statusRoute = require('./routes/status')
 const getkeyRoute = require('./routes/getkey')
+const supabase = require('./services/supabase')
 
 const app = express()
 
@@ -24,7 +24,7 @@ app.set('trust proxy', 1) // Required for Railway — fixes express-rate-limit c
 app.use(cors())
 app.use(express.json())
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 })
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5000 })
 app.use(limiter)
 
 // ── Roblox / public routes ──────────────────────────────────────────────────
@@ -36,7 +36,7 @@ app.get('/api/registered-users', async (req, res) => {
     try {
         const { data, error } = await supabase.from('users').select('roblox_username')
         if (error) return res.status(500).json({ error: error.message })
-        const usernames = data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase())
+        const usernames = [...new Set(data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase()))]
         res.status(200).json({ usernames })
     } catch (err) { res.status(500).json({ error: 'Internal error' }) }
 })
@@ -75,7 +75,7 @@ app.get('/registered-users', async (req, res) => {
     try {
         const { data, error } = await supabase.from('users').select('roblox_username')
         if (error) return res.status(500).json({ error: error.message })
-        const usernames = data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase())
+        const usernames = [...new Set(data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase()))]
         res.status(200).json({ usernames })
     } catch (err) { res.status(500).json({ error: 'Internal error' }) }
 })
