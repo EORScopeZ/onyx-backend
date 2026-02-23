@@ -34,7 +34,11 @@ app.use('/api/log-execution', logExecutionRoute)
 app.use('/api/get-nametag', getNametagRoute)
 app.get('/api/registered-users', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('users').select('roblox_username')
+        const job_id = (req.query.job_id || '').trim()
+        const recentThreshold = new Date(Date.now() - 120000).toISOString()
+        let query = supabase.from('users').select('roblox_username').gte('last_heartbeat', recentThreshold)
+        if (job_id) query = query.eq('job_id', job_id)
+        const { data, error } = await query
         if (error) return res.status(500).json({ error: error.message })
         const usernames = [...new Set(data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase()))]
         res.status(200).json({ usernames })
@@ -73,7 +77,11 @@ app.use('/log-execution', logExecutionRoute)
 app.use('/register-onyx-user', registerUserRoute)
 app.get('/registered-users', async (req, res) => {
     try {
-        const { data, error } = await supabase.from('users').select('roblox_username')
+        const job_id = (req.query.job_id || '').trim()
+        const recentThreshold = new Date(Date.now() - 120000).toISOString()
+        let query = supabase.from('users').select('roblox_username').gte('last_heartbeat', recentThreshold)
+        if (job_id) query = query.eq('job_id', job_id)
+        const { data, error } = await query
         if (error) return res.status(500).json({ error: error.message })
         const usernames = [...new Set(data.filter(u => u.roblox_username).map(u => u.roblox_username.toLowerCase()))]
         res.status(200).json({ usernames })
