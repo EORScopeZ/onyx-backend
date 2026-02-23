@@ -28,7 +28,7 @@ router.get('/:username', async (req, res) => {
             found: true,
             active: isActive,
             config: {
-                name_text: user.nametag_text || roblox_username,
+                name_text: user.nametag_text || "Onyx User",
                 name_color: user.nametag_color || "#ffffff",
                 tag_color: user.background_color || "#0f0f0f",
                 glow_color: user.outline_color || "#8b7fff",
