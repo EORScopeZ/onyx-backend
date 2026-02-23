@@ -19,6 +19,9 @@ router.get('/:username', async (req, res) => {
         if (!user)
             return res.json({ found: false })
 
+        // Debug: log exactly what's stored for this user's images
+        console.log(`[get-nametag] ${roblox_username} → tag_image=${user.tag_image}, icon_image=${user.icon_image}, heartbeat=${user.last_heartbeat}`)
+
         const isActive = user.last_heartbeat && (new Date() - new Date(user.last_heartbeat)) < 120000
 
         return res.json({
