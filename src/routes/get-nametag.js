@@ -9,18 +9,14 @@ router.get('/:username', async (req, res) => {
     try {
         const { data: user } = await supabase
             .from('users')
-            .select('*')
+            .select('nametag_enabled, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, last_heartbeat')
             .ilike('roblox_username', roblox_username)
-            .order('nametag_text', { ascending: false, nullsFirst: false })
             .order('last_heartbeat', { ascending: false })
             .limit(1)
             .maybeSingle()
 
         if (!user)
             return res.json({ found: false })
-
-        // Debug: log exactly what's stored for this user's images
-        console.log(`[get-nametag] ${roblox_username} → tag_image=${user.tag_image}, icon_image=${user.icon_image}, heartbeat=${user.last_heartbeat}`)
 
         const isActive = user.last_heartbeat && (new Date() - new Date(user.last_heartbeat)) < 120000
 
@@ -29,7 +25,7 @@ router.get('/:username', async (req, res) => {
             active: isActive,
             config: {
                 name_text: user.nametag_text || "Onyx User",
-                name_color: user.nametag_color || "#ffffff",
+                name_color: user.nametag_color,
                 tag_color: user.background_color || "#0f0f0f",
                 glow_color: user.outline_color || "#8b7fff",
                 outline_color: user.outline_color || "#8b7fff",
