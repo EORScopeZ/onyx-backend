@@ -19,9 +19,11 @@ router.get('/:username', async (req, res) => {
         if (!user)
             return res.json({ found: false })
 
+        const isActive = user.last_heartbeat && (new Date() - new Date(user.last_heartbeat)) < 120000
+
         return res.json({
             found: true,
-            active: true,
+            active: isActive,
             config: {
                 name_text: user.nametag_text || roblox_username,
                 name_color: user.nametag_color || "#ffffff",
