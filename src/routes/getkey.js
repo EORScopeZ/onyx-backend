@@ -1,30 +1,5 @@
 const express = require('express')
 const router  = express.Router()
-const supabase = require('../services/supabase')
-
-// Public endpoint to get the current valid key
-router.get('/current', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('system_settings')
-            .select('value, expires_at')
-            .eq('type', 'global_key')
-            .maybeSingle()
-
-        if (error) throw error
-
-        if (!data) return res.json({ key: null, message: 'No key set.' })
-
-        if (data.expires_at && new Date(data.expires_at) < new Date()) {
-            return res.json({ key: null, message: 'Key has expired.' })
-        }
-
-        return res.json({ key: data.value, expires_at: data.expires_at })
-    } catch (err) {
-        console.error('[getkey/current]', err)
-        return res.status(500).json({ key: null, message: 'Server error.' })
-    }
-})
 
 router.get('/', (req, res) => {
     res.setHeader('Content-Type', 'text/html')
@@ -36,7 +11,7 @@ const HTML = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Onyx — Get Access</title>
+    <title>Onyx — Get Your Key</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #05050f; color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -46,58 +21,77 @@ const HTML = `<!DOCTYPE html>
         .blob2 { width:400px;height:400px;background:#5b3fe3;bottom:-80px;right:-80px;animation-delay:-4s; }
         .blob3 { width:300px;height:300px;background:#a78bfa;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:-8s; }
         @keyframes drift { from{transform:translate(0,0) scale(1)} to{transform:translate(30px,20px) scale(1.08)} }
-        .card { position:relative;z-index:1;background:rgba(15,15,30,0.82);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:44px 40px 36px;width:100%;max-width:460px;box-shadow:0 0 60px rgba(139,127,255,0.12),0 20px 60px rgba(0,0,0,0.5);backdrop-filter:blur(14px);text-align:center; }
-        .card::before { content:'';position:absolute;top:0;left:20px;right:20px;height:3px;background:linear-gradient(90deg,#8b7fff,#a78bfa,#8b7fff);border-radius:0 0 4px 4px; }
-        .logo { font-size:32px;font-weight:900;letter-spacing:6px;background:linear-gradient(135deg,#fff 30%,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px; }
-        .subtitle { font-size:12px;color:#8b7fff;letter-spacing:2px;text-transform:uppercase;margin-bottom:32px; }
-        .info { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 22px;margin-bottom:24px;text-align:left; }
-        .step { display:flex;align-items:flex-start;gap:10px;margin-bottom:12px; }
+
+        .card {
+            position:relative;z-index:1;background:rgba(15,15,30,0.82);
+            border:1px solid rgba(255,255,255,0.1);border-radius:20px;
+            padding:44px 40px 36px;width:100%;max-width:460px;
+            box-shadow:0 0 60px rgba(139,127,255,0.12),0 20px 60px rgba(0,0,0,0.5);
+            backdrop-filter:blur(14px);text-align:center;
+        }
+        .card::before {
+            content:'';position:absolute;top:0;left:20px;right:20px;height:3px;
+            background:linear-gradient(90deg,#8b7fff,#a78bfa,#8b7fff);border-radius:0 0 4px 4px;
+        }
+        .logo {
+            font-size:32px;font-weight:900;letter-spacing:6px;
+            background:linear-gradient(135deg,#fff 30%,#a78bfa);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;
+        }
+        .subtitle { font-size:12px;color:#8b7fff;letter-spacing:2px;text-transform:uppercase;margin-bottom:28px; }
+
+        .info { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px 18px;margin-bottom:24px;text-align:left; }
+        .step { display:flex;align-items:flex-start;gap:10px;margin-bottom:10px; }
         .step:last-child{margin-bottom:0}
         .step-num { background:rgba(139,127,255,0.25);color:#a78bfa;font-size:11px;font-weight:700;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px; }
         .step-text { font-size:13px;color:#aaa;line-height:1.5; }
         .step-text strong { color:#d4d0ff }
 
-        /* Get Key button */
-        .btn-getkey {
-            width:100%;padding:14px;border:none;border-radius:12px;
-            background:linear-gradient(135deg,#8b7fff,#5b3fe3);
-            color:#fff;font-size:15px;font-weight:700;letter-spacing:1px;
-            cursor:pointer;transition:opacity 0.2s,transform 0.1s;
-            margin-bottom:16px;
-        }
-        .btn-getkey:hover { opacity:0.88; transform:translateY(-1px); }
-        .btn-getkey:active { transform:translateY(0); }
-        .btn-getkey:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-
-        /* Key display box */
+        /* Key box */
         .key-box {
-            display:none;
-            background:rgba(139,127,255,0.08);
-            border:1px solid rgba(139,127,255,0.35);
-            border-radius:12px;padding:16px 18px;margin-bottom:16px;
-            text-align:left;
+            display:none;background:rgba(139,127,255,0.08);
+            border:1px solid rgba(139,127,255,0.35);border-radius:12px;
+            padding:18px 18px;margin-bottom:16px;text-align:left;
         }
-        .key-label { font-size:10px;color:#8b7fff;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px; }
-        .key-value-row { display:flex;align-items:center;gap:10px; }
-        .key-value {
-            flex:1;font-family:'Courier New',monospace;font-size:14px;
-            color:#d4d0ff;word-break:break-all;user-select:all;
-        }
+        .key-label { font-size:10px;color:#8b7fff;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px; }
+        .key-value-row { display:flex;align-items:center;gap:10px;margin-bottom:10px; }
+        .key-value { flex:1;font-family:'Courier New',monospace;font-size:15px;color:#d4d0ff;word-break:break-all;user-select:all;font-weight:700; }
         .btn-copy {
             background:rgba(139,127,255,0.2);border:1px solid rgba(139,127,255,0.4);
-            color:#a78bfa;font-size:11px;font-weight:700;padding:6px 12px;
-            border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 0.2s;
-            flex-shrink:0;
+            color:#a78bfa;font-size:11px;font-weight:700;padding:7px 16px;
+            border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 0.2s;flex-shrink:0;
         }
-        .btn-copy:hover { background:rgba(139,127,255,0.35); }
-        .key-expires { font-size:11px;color:#555;margin-top:10px; }
+        .btn-copy:hover { background:rgba(139,127,255,0.38); }
+        .key-meta { display:flex;justify-content:space-between;font-size:11px;color:#555; }
+        .key-hwid-note { font-size:11px;color:#555;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05); }
 
-        /* Error/loading states */
-        .msg { font-size:13px;padding:12px 16px;border-radius:10px;margin-bottom:16px;display:none; }
-        .msg.error { background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.25);color:#ff8080; }
-        .msg.loading { background:rgba(139,127,255,0.08);border:1px solid rgba(139,127,255,0.2);color:#a78bfa; }
-        .copied { color:#7fff9e !important; }
+        /* Wait / countdown box */
+        .wait-box {
+            display:none;background:rgba(255,170,0,0.07);
+            border:1px solid rgba(255,170,0,0.3);border-radius:12px;
+            padding:18px 18px;margin-bottom:16px;text-align:center;
+        }
+        .wait-title { font-size:15px;font-weight:700;color:#ffaa00;margin-bottom:6px; }
+        .wait-desc  { font-size:13px;color:#888;margin-bottom:14px; }
+        .countdown  { font-size:28px;font-weight:900;color:#ffaa00;letter-spacing:2px;font-family:'Courier New',monospace; }
+        .countdown-label { font-size:11px;color:#555;margin-top:4px; }
 
+        /* Loading */
+        .loading-box {
+            padding:20px;text-align:center;color:#8b7fff;font-size:13px;
+        }
+        .spinner {
+            width:32px;height:32px;border:3px solid rgba(139,127,255,0.2);
+            border-top-color:#8b7fff;border-radius:50%;
+            animation:spin 0.8s linear infinite;margin:0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .msg-error {
+            display:none;background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.25);
+            color:#ff8080;font-size:13px;padding:12px 16px;border-radius:10px;margin-bottom:14px;
+        }
+        .copied { color:#7fff9e !important; border-color:rgba(127,255,158,0.4) !important; }
         .footer { margin-top:20px;font-size:11px;color:#333;letter-spacing:0.5px; }
     </style>
 </head>
@@ -108,75 +102,113 @@ const HTML = `<!DOCTYPE html>
     <div class="subtitle">Get Your Key</div>
 
     <div class="info">
-        <div class="step"><div class="step-num">1</div><div class="step-text">Click <strong>Get Key</strong> below to reveal the current access key.</div></div>
-        <div class="step"><div class="step-num">2</div><div class="step-text">Keys are valid for <strong>48 hours</strong> — copy it before it expires.</div></div>
-        <div class="step"><div class="step-num">3</div><div class="step-text">Enter the key in the <strong>Onyx auth screen</strong> in Roblox.</div></div>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Your personal key is generated automatically for your connection.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Copy it and paste it into the <strong>Onyx auth screen</strong> in Roblox.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Keys last <strong>48 hours</strong> and are <strong>device-locked</strong> on first use.</div></div>
     </div>
 
-    <div class="msg error" id="errMsg"></div>
-    <div class="msg loading" id="loadMsg">Fetching key...</div>
+    <div class="msg-error" id="errMsg"></div>
 
-    <button class="btn-getkey" id="btnGetKey" onclick="fetchKey()">🔑 Get Key</button>
+    <div class="loading-box" id="loadingBox">
+        <div class="spinner"></div>
+        Fetching your key...
+    </div>
 
+    <!-- Key display -->
     <div class="key-box" id="keyBox">
-        <div class="key-label">Your Access Key</div>
+        <div class="key-label">Your Personal Key</div>
         <div class="key-value-row">
             <div class="key-value" id="keyValue"></div>
             <button class="btn-copy" id="btnCopy" onclick="copyKey()">Copy</button>
         </div>
-        <div class="key-expires" id="keyExpires"></div>
+        <div class="key-meta">
+            <span id="keyExpires"></span>
+            <span id="keyBadge"></span>
+        </div>
+        <div class="key-hwid-note">🔒 Locks to your device (HWID) the first time you use it in Roblox.</div>
     </div>
 
-    <div class="footer">Keys rotate every 48 hours · Whitelist = permanent access</div>
+    <!-- Countdown (already used) -->
+    <div class="wait-box" id="waitBox">
+        <div class="wait-title">⏳ Key Already Active</div>
+        <div class="wait-desc">Your key for this window is in use. Next key available in:</div>
+        <div class="countdown" id="countdown">--:--:--</div>
+        <div class="countdown-label">hours : minutes : seconds</div>
+    </div>
+
+    <div class="footer">One key per connection per 48 hours · Keys auto-rotate</div>
 </div>
 
 <script>
-    async function fetchKey() {
-        const btn = document.getElementById('btnGetKey')
-        const errMsg = document.getElementById('errMsg')
-        const loadMsg = document.getElementById('loadMsg')
-        const keyBox = document.getElementById('keyBox')
+    let countdownInterval = null
 
-        btn.disabled = true
-        errMsg.style.display = 'none'
-        keyBox.style.display = 'none'
-        loadMsg.style.display = 'block'
-
+    async function loadKey() {
         try {
-            const res = await fetch('/getkey/current')
+            const res  = await fetch('/get-user-key')
             const data = await res.json()
 
-            loadMsg.style.display = 'none'
+            document.getElementById('loadingBox').style.display = 'none'
 
-            if (!data.key) {
-                errMsg.textContent = data.message || 'No active key right now. Check back later.'
-                errMsg.style.display = 'block'
-                btn.disabled = false
+            if (data.error) {
+                showError(data.error)
                 return
             }
 
-            document.getElementById('keyValue').textContent = data.key
-
-            if (data.expires_at) {
-                const exp = new Date(data.expires_at)
-                const now = new Date()
-                const diffMs = exp - now
-                const diffHrs = Math.floor(diffMs / 3600000)
-                const diffMins = Math.floor((diffMs % 3600000) / 60000)
-                document.getElementById('keyExpires').textContent =
-                    'Expires in ' + (diffHrs > 0 ? diffHrs + 'h ' : '') + diffMins + 'm'
+            if (data.locked) {
+                // Key used — show countdown to expiry
+                showCountdown(data.expires_at)
+                return
             }
 
-            keyBox.style.display = 'block'
-            btn.textContent = '🔄 Refresh Key'
-            btn.disabled = false
+            // Show the key
+            document.getElementById('keyValue').textContent  = data.key
+            document.getElementById('keyBadge').textContent  = data.fresh ? '🆕 New key' : '♻️ Your active key'
+            document.getElementById('keyBox').style.display  = 'block'
+
+            if (data.expires_at) {
+                const exp     = new Date(data.expires_at)
+                const now     = new Date()
+                const diffMs  = exp - now
+                const diffHrs = Math.floor(diffMs / 3600000)
+                const diffMin = Math.floor((diffMs % 3600000) / 60000)
+                document.getElementById('keyExpires').textContent =
+                    'Expires in ' + (diffHrs > 0 ? diffHrs + 'h ' : '') + diffMin + 'm'
+            }
 
         } catch (e) {
-            loadMsg.style.display = 'none'
-            errMsg.textContent = 'Failed to fetch key. Try again.'
-            errMsg.style.display = 'block'
-            btn.disabled = false
+            document.getElementById('loadingBox').style.display = 'none'
+            showError('Failed to fetch key. Please refresh the page.')
         }
+    }
+
+    function showCountdown(expiresAt) {
+        document.getElementById('waitBox').style.display = 'block'
+        const target = new Date(expiresAt)
+
+        function tick() {
+            const now  = new Date()
+            const diff = target - now
+            if (diff <= 0) {
+                document.getElementById('countdown').textContent = '00:00:00'
+                clearInterval(countdownInterval)
+                return
+            }
+            const h = Math.floor(diff / 3600000)
+            const m = Math.floor((diff % 3600000) / 60000)
+            const s = Math.floor((diff % 60000) / 1000)
+            document.getElementById('countdown').textContent =
+                String(h).padStart(2,'0') + ':' +
+                String(m).padStart(2,'0') + ':' +
+                String(s).padStart(2,'0')
+        }
+        tick()
+        countdownInterval = setInterval(tick, 1000)
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errMsg')
+        el.textContent   = msg
+        el.style.display = 'block'
     }
 
     function copyKey() {
@@ -188,6 +220,9 @@ const HTML = `<!DOCTYPE html>
             setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied') }, 2000)
         })
     }
+
+    // Auto-load on page open
+    loadKey()
 </script>
 </body></html>`
 
