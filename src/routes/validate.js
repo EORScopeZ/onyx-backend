@@ -25,11 +25,54 @@ router.post('/', async (req, res) => {
             .maybeSingle()
 
         if (error) throw error
-        if (!user)             return res.json({ valid: false, whitelisted: false, message: 'User not found. Ask to be whitelisted.' })
-        if (user.blacklisted)  return res.json({ valid: false, whitelisted: false, message: 'You are blacklisted.' })
-        if (!user.whitelisted) return res.json({ valid: false, whitelisted: false, message: 'You are not whitelisted.' })
 
-        // ── 2. HWID binding ──────────────────────────────────────────────────
+        // ── 2. Check global temp key (for non-whitelisted users) ─────────────
+        if (key) {
+            const { data: setting, error: keyError } = await supabase
+                .from('system_settings')
+                .select('*')
+                .eq('type', 'global_key')
+                .maybeSingle()
+
+            if (keyError) throw keyError
+
+            if (setting && setting.value === key.trim()) {
+                // Check expiry
+                if (setting.expires_at && new Date(setting.expires_at) < new Date()) {
+                    return res.json({ valid: false, message: 'Key has expired. Get a new key.' })
+                }
+
+                // Key is valid! HWID bind if user exists, otherwise allow through
+                if (user) {
+                    if (user.blacklisted)
+                        return res.json({ valid: false, message: 'You are blacklisted.' })
+
+                    if (!user.hwid) {
+                        await supabase.from('users').update({ hwid }).eq('id', user.id)
+                    } else if (user.hwid !== hwid) {
+                        return res.json({ valid: false, message: 'HWID mismatch. Contact support.' })
+                    }
+
+                    const nametag = user.nametag_enabled
+                        ? { text: user.nametag_text, color: user.nametag_color, effect: user.nametag_effect }
+                        : null
+
+                    return res.json({ valid: true, whitelisted: false, type: 'temp_key', nametag })
+                }
+
+                // User not in DB but key is valid — let them through as temp key user
+                return res.json({ valid: true, whitelisted: false, type: 'temp_key', nametag: null })
+            } else {
+                return res.json({ valid: false, message: 'Invalid key.' })
+            }
+        }
+
+        // ── 3. No key provided — require whitelist ───────────────────────────
+        if (!user)             return res.json({ valid: false, whitelisted: false, message: 'User not found. Ask to be whitelisted or use a key.' })
+        if (user.blacklisted)  return res.json({ valid: false, whitelisted: false, message: 'You are blacklisted.' })
+        if (!user.whitelisted) return res.json({ valid: false, whitelisted: false, message: 'You are not whitelisted. Use a key or ask for access.' })
+
+        // ── 4. HWID binding ──────────────────────────────────────────────────
         if (!user.hwid) {
             await supabase.from('users').update({ hwid }).eq('id', user.id)
         } else if (user.hwid !== hwid) {
@@ -41,7 +84,7 @@ router.post('/', async (req, res) => {
             ? { text: user.nametag_text, color: user.nametag_color, effect: user.nametag_effect }
             : null
 
-        // ── 3. Whitelisted users skip the key entirely ───────────────────────
+        // ── 5. Whitelisted user — always valid, skip key ─────────────────────
         return res.json({ valid: true, whitelisted: true, type: 'whitelisted', nametag })
 
     } catch (err) {
