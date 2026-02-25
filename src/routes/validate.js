@@ -4,12 +4,8 @@ const supabase = require('../services/supabase')
 
 router.post('/', async (req, res) => {
     const { username, roblox_user, key, hwid, secret } = req.body
-
-    // Accept both field names
     const robloxName = (username || roblox_user || '').toLowerCase().trim()
 
-    // Secret is optional for Roblox clients (it's client-side code, secret would be exposed)
-    // Only enforce if explicitly provided
     if (secret && secret !== process.env.API_SECRET)
         return res.json({ valid: false, message: 'Forbidden.' })
 
@@ -17,75 +13,72 @@ router.post('/', async (req, res) => {
         return res.json({ valid: false, message: 'Missing username or hwid.' })
 
     try {
-        // ── 1. Fetch user ────────────────────────────────────────────────────
-        const { data: user, error } = await supabase
+        // ── 1. Check users table for whitelist / blacklist ────────────────────
+        const { data: user, error: userError } = await supabase
             .from('users')
             .select('*')
             .eq('roblox_username', robloxName)
             .maybeSingle()
 
-        if (error) throw error
+        if (userError) throw userError
 
-        // ── 2. Check global temp key (for non-whitelisted users) ─────────────
-        if (key) {
-            const { data: setting, error: keyError } = await supabase
-                .from('system_settings')
-                .select('*')
-                .eq('type', 'global_key')
-                .maybeSingle()
+        if (user && user.blacklisted)
+            return res.json({ valid: false, message: 'You are blacklisted.' })
 
-            if (keyError) throw keyError
-
-            if (setting && setting.value === key.trim()) {
-                // Check expiry
-                if (setting.expires_at && new Date(setting.expires_at) < new Date()) {
-                    return res.json({ valid: false, message: 'Key has expired. Get a new key.' })
-                }
-
-                // Key is valid! HWID bind if user exists, otherwise allow through
-                if (user) {
-                    if (user.blacklisted)
-                        return res.json({ valid: false, message: 'You are blacklisted.' })
-
-                    if (!user.hwid) {
-                        await supabase.from('users').update({ hwid }).eq('id', user.id)
-                    } else if (user.hwid !== hwid) {
-                        return res.json({ valid: false, message: 'HWID mismatch. Contact support.' })
-                    }
-
-                    const nametag = user.nametag_enabled
-                        ? { text: user.nametag_text, color: user.nametag_color, effect: user.nametag_effect }
-                        : null
-
-                    return res.json({ valid: true, whitelisted: false, type: 'temp_key', nametag })
-                }
-
-                // User not in DB but key is valid — let them through as temp key user
-                return res.json({ valid: true, whitelisted: false, type: 'temp_key', nametag: null })
-            } else {
-                return res.json({ valid: false, message: 'Invalid key.' })
+        // Permanently whitelisted — skip key entirely
+        if (user && user.whitelisted) {
+            if (!user.hwid) {
+                await supabase.from('users').update({ hwid }).eq('id', user.id)
+            } else if (user.hwid !== hwid) {
+                return res.json({ valid: false, message: 'HWID mismatch. Contact support.' })
             }
+            const nametag = user.nametag_enabled
+                ? { text: user.nametag_text, color: user.nametag_color, effect: user.nametag_effect }
+                : null
+            return res.json({ valid: true, whitelisted: true, type: 'whitelisted', nametag })
         }
 
-        // ── 3. No key provided — require whitelist ───────────────────────────
-        if (!user)             return res.json({ valid: false, whitelisted: false, message: 'User not found. Ask to be whitelisted or use a key.' })
-        if (user.blacklisted)  return res.json({ valid: false, whitelisted: false, message: 'You are blacklisted.' })
-        if (!user.whitelisted) return res.json({ valid: false, whitelisted: false, message: 'You are not whitelisted. Use a key or ask for access.' })
+        // ── 2. Key required for everyone else ─────────────────────────────────
+        if (!key)
+            return res.json({ valid: false, message: 'Key required. Visit the key page to get your key.' })
 
-        // ── 4. HWID binding ──────────────────────────────────────────────────
-        if (!user.hwid) {
-            await supabase.from('users').update({ hwid }).eq('id', user.id)
-        } else if (user.hwid !== hwid) {
-            return res.json({ valid: false, whitelisted: false, message: 'HWID mismatch. Contact support.' })
+        // ── 3. Look up key in issued_keys ─────────────────────────────────────
+        const { data: issued, error: keyError } = await supabase
+            .from('issued_keys')
+            .select('*')
+            .eq('key', key.trim())
+            .maybeSingle()
+
+        if (keyError) throw keyError
+
+        if (!issued)
+            return res.json({ valid: false, message: 'Invalid key. Get your key from the key page.' })
+
+        if (new Date(issued.expires_at) < new Date())
+            return res.json({ valid: false, message: 'Key expired. Visit the key page to get a new one.' })
+
+        // ── 4. HWID binding ───────────────────────────────────────────────────
+        if (!issued.hwid) {
+            // First use — bind HWID and username to this key
+            await supabase
+                .from('issued_keys')
+                .update({ hwid, roblox_username: robloxName })
+                .eq('id', issued.id)
+        } else if (issued.hwid !== hwid) {
+            return res.json({ valid: false, message: 'This key is locked to a different device.' })
         }
 
-        // Build nametag payload
-        const nametag = user.nametag_enabled
+        // ── 5. Username consistency check ─────────────────────────────────────
+        // Once a key is bound to a username, reject different usernames using it
+        if (issued.roblox_username && issued.roblox_username !== robloxName) {
+            return res.json({ valid: false, message: 'This key is already bound to a different account.' })
+        }
+
+        const nametag = (user && user.nametag_enabled)
             ? { text: user.nametag_text, color: user.nametag_color, effect: user.nametag_effect }
             : null
 
-        // ── 5. Whitelisted user — always valid, skip key ─────────────────────
-        return res.json({ valid: true, whitelisted: true, type: 'whitelisted', nametag })
+        return res.json({ valid: true, whitelisted: false, type: 'temp_key', nametag })
 
     } catch (err) {
         console.error('[validate]', err)
