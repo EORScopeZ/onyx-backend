@@ -104,7 +104,7 @@ const HTML = `<!DOCTYPE html>
     <div class="info">
         <div class="step"><div class="step-num">1</div><div class="step-text">Your personal key is generated automatically for your connection.</div></div>
         <div class="step"><div class="step-num">2</div><div class="step-text">Copy it and paste it into the <strong>Onyx auth screen</strong> in Roblox.</div></div>
-        <div class="step"><div class="step-num">3</div><div class="step-text">Keys last <strong>48 hours</strong> and are <strong>device-locked</strong> on first use.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Keys last <strong>24 hours</strong> and are <strong>device-locked</strong> on first use.</div></div>
     </div>
 
     <div class="msg-error" id="errMsg"></div>
@@ -136,7 +136,7 @@ const HTML = `<!DOCTYPE html>
         <div class="countdown-label">hours : minutes : seconds</div>
     </div>
 
-    <div class="footer">One key per connection per 48 hours · Keys auto-rotate</div>
+    <div class="footer">One key per connection per 24 hours · Keys auto-rotate</div>
 </div>
 
 <script>
