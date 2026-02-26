@@ -30,15 +30,7 @@ router.get('/', async (req, res) => {
         if (error) throw error
 
         if (existing) {
-            if (existing.hwid) {
-                // Key already HWID-bound — they used it. Make them wait.
-                return res.json({
-                    locked:     true,
-                    expires_at: existing.expires_at,
-                    message:    'Your key is active on another device. Wait for the next rotation.'
-                })
-            }
-            // Key exists but not yet used — return it so they can copy it again
+            // Return the key whether or not it's HWID-bound — user may need to copy it again on login
             return res.json({ key: existing.key, expires_at: existing.expires_at, fresh: false })
         }
 
