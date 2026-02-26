@@ -11,7 +11,35 @@ async function handler(req, res) {
     if (!verifySecret(req))
         return res.status(403).json({ error: 'Forbidden.' })
 
+    const keyParam = req.params.key
+
     try {
+        // ── If a specific key was passed, look it up in issued_keys ──────────
+        if (keyParam) {
+            const { data: issued, error } = await supabase
+                .from('issued_keys')
+                .select('*')
+                .eq('key', keyParam.trim())
+                .maybeSingle()
+
+            if (error) throw error
+
+            if (!issued)
+                return res.json({ found: false, message: 'Key not found.' })
+
+            const expired = new Date(issued.expires_at) < new Date()
+
+            return res.json({
+                found:           true,
+                key:             issued.key,
+                expires_at:      issued.expires_at,
+                expired,
+                hwid_bound:      !!issued.hwid,
+                roblox_username: issued.roblox_username || null,
+            })
+        }
+
+        // ── No key passed — return global key status ──────────────────────────
         const { data: globalKey } = await supabase
             .from('system_settings')
             .select('*')
