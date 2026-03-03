@@ -47,7 +47,6 @@ const HTML = `<!DOCTYPE html>
         .step-text { font-size:13px;color:#aaa;line-height:1.5; }
         .step-text strong { color:#d4d0ff }
 
-        /* Key box */
         .key-box {
             display:none;background:rgba(139,127,255,0.08);
             border:1px solid rgba(139,127,255,0.35);border-radius:12px;
@@ -65,21 +64,7 @@ const HTML = `<!DOCTYPE html>
         .key-meta { display:flex;justify-content:space-between;font-size:11px;color:#555; }
         .key-hwid-note { font-size:11px;color:#555;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05); }
 
-        /* Wait / countdown box */
-        .wait-box {
-            display:none;background:rgba(255,170,0,0.07);
-            border:1px solid rgba(255,170,0,0.3);border-radius:12px;
-            padding:18px 18px;margin-bottom:16px;text-align:center;
-        }
-        .wait-title { font-size:15px;font-weight:700;color:#ffaa00;margin-bottom:6px; }
-        .wait-desc  { font-size:13px;color:#888;margin-bottom:14px; }
-        .countdown  { font-size:28px;font-weight:900;color:#ffaa00;letter-spacing:2px;font-family:'Courier New',monospace; }
-        .countdown-label { font-size:11px;color:#555;margin-top:4px; }
-
-        /* Loading */
-        .loading-box {
-            padding:20px;text-align:center;color:#8b7fff;font-size:13px;
-        }
+        .loading-box { padding:20px;text-align:center;color:#8b7fff;font-size:13px; }
         .spinner {
             width:32px;height:32px;border:3px solid rgba(139,127,255,0.2);
             border-top-color:#8b7fff;border-radius:50%;
@@ -102,9 +87,9 @@ const HTML = `<!DOCTYPE html>
     <div class="subtitle">Get Your Key</div>
 
     <div class="info">
-        <div class="step"><div class="step-num">1</div><div class="step-text">Your personal key is generated automatically for your connection.</div></div>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Your personal key is generated automatically for your session.</div></div>
         <div class="step"><div class="step-num">2</div><div class="step-text">Copy it and paste it into the <strong>Onyx auth screen</strong> in Roblox.</div></div>
-        <div class="step"><div class="step-num">3</div><div class="step-text">Keys last <strong>48 hours</strong> and are <strong>device-locked</strong> on first use.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Keys reset every <strong>48 hours</strong> and are <strong>device-locked</strong> on first use.</div></div>
     </div>
 
     <div class="msg-error" id="errMsg"></div>
@@ -114,7 +99,6 @@ const HTML = `<!DOCTYPE html>
         Fetching your key...
     </div>
 
-    <!-- Key display -->
     <div class="key-box" id="keyBox">
         <div class="key-label">Your Personal Key</div>
         <div class="key-value-row">
@@ -128,23 +112,28 @@ const HTML = `<!DOCTYPE html>
         <div class="key-hwid-note">🔒 Locks to your device (HWID) the first time you use it in Roblox.</div>
     </div>
 
-    <!-- Countdown (already used) -->
-    <div class="wait-box" id="waitBox">
-        <div class="wait-title">⏳ Key Already Active</div>
-        <div class="wait-desc">Your key for this window is in use. Next key available in:</div>
-        <div class="countdown" id="countdown">--:--:--</div>
-        <div class="countdown-label">hours : minutes : seconds</div>
-    </div>
-
-    <div class="footer">One key per connection per 48 hours · Keys auto-rotate</div>
+    <div class="footer">New key each visit · Refreshing keeps your key · Resets every 48 hours</div>
 </div>
 
 <script>
-    let countdownInterval = null
+    // ── Session ID ─────────────────────────────────────────────────────────────
+    // sessionStorage survives page refreshes but is wiped when the tab/window closes.
+    // So: refresh = same session ID = same key. New tab/window = new ID = new key.
+    function getSessionId() {
+        let id = sessionStorage.getItem('onyx_session_id')
+        if (!id) {
+            // Generate a random session ID
+            id = 'sess_' + Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                .map(b => b.toString(16).padStart(2, '0')).join('')
+            sessionStorage.setItem('onyx_session_id', id)
+        }
+        return id
+    }
 
     async function loadKey() {
         try {
-            const res  = await fetch('/get-user-key')
+            const sessionId = getSessionId()
+            const res  = await fetch('/get-user-key?session=' + encodeURIComponent(sessionId))
             const data = await res.json()
 
             document.getElementById('loadingBox').style.display = 'none'
@@ -154,55 +143,24 @@ const HTML = `<!DOCTYPE html>
                 return
             }
 
-            if (data.locked) {
-                // Key used — show countdown to expiry
-                showCountdown(data.expires_at)
-                return
-            }
-
-            // Show the key
-            document.getElementById('keyValue').textContent  = data.key
-            document.getElementById('keyBadge').textContent  = data.fresh ? '🆕 New key' : '♻️ Your active key'
-            document.getElementById('keyBox').style.display  = 'block'
+            document.getElementById('keyValue').textContent = data.key
+            document.getElementById('keyBadge').textContent = data.fresh ? '🆕 New key' : '♻️ Same session'
+            document.getElementById('keyBox').style.display = 'block'
 
             if (data.expires_at) {
-                const exp     = new Date(data.expires_at)
-                const now     = new Date()
-                const diffMs  = exp - now
-                const diffHrs = Math.floor(diffMs / 3600000)
-                const diffMin = Math.floor((diffMs % 3600000) / 60000)
+                const exp    = new Date(data.expires_at)
+                const now    = new Date()
+                const diffMs = exp - now
+                const h      = Math.floor(diffMs / 3600000)
+                const m      = Math.floor((diffMs % 3600000) / 60000)
                 document.getElementById('keyExpires').textContent =
-                    'Expires in ' + (diffHrs > 0 ? diffHrs + 'h ' : '') + diffMin + 'm'
+                    'Expires in ' + (h > 0 ? h + 'h ' : '') + m + 'm'
             }
 
         } catch (e) {
             document.getElementById('loadingBox').style.display = 'none'
             showError('Failed to fetch key. Please refresh the page.')
         }
-    }
-
-    function showCountdown(expiresAt) {
-        document.getElementById('waitBox').style.display = 'block'
-        const target = new Date(expiresAt)
-
-        function tick() {
-            const now  = new Date()
-            const diff = target - now
-            if (diff <= 0) {
-                document.getElementById('countdown').textContent = '00:00:00'
-                clearInterval(countdownInterval)
-                return
-            }
-            const h = Math.floor(diff / 3600000)
-            const m = Math.floor((diff % 3600000) / 60000)
-            const s = Math.floor((diff % 60000) / 1000)
-            document.getElementById('countdown').textContent =
-                String(h).padStart(2,'0') + ':' +
-                String(m).padStart(2,'0') + ':' +
-                String(s).padStart(2,'0')
-        }
-        tick()
-        countdownInterval = setInterval(tick, 1000)
     }
 
     function showError(msg) {
@@ -221,7 +179,6 @@ const HTML = `<!DOCTYPE html>
         })
     }
 
-    // Auto-load on page open
     loadKey()
 </script>
 </body></html>`
