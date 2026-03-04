@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
             return res.json({ valid: false, message: 'Invalid key. Get your key from the key page.' })
 
         if (new Date(issued.expires_at) < new Date())
-            return res.json({ valid: false, message: 'Key expired. Visit the key page to get a new one.' })
+            return res.json({ valid: false, type: 'expired', message: 'Key expired. Visit the key page to get a new one.' })
 
         // ── 4. HWID binding ───────────────────────────────────────────────────
         if (!issued.hwid) {
@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
             ? { text: user.nametag_text, color: user.nametag_color, effect: user.nametag_effect }
             : null
 
-        return res.json({ valid: true, whitelisted: false, type: 'temp_key', nametag })
+        return res.json({ valid: true, whitelisted: false, type: 'temp_key', expires_at: issued.expires_at, nametag })
 
     } catch (err) {
         console.error('[validate]', err)
