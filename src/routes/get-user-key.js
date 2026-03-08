@@ -24,9 +24,6 @@ function getWindowExpiry() {
 }
 
 // GET /get-user-key?session=<id>
-// session_id comes from the browser's sessionStorage.
-//   - Same session (refresh) → same ID → returns the existing key
-//   - New session (closed tab, new window) → new ID → generates a new key
 router.get('/', async (req, res) => {
     const session_id = (req.query.session || '').trim()
     const ip         = (req.headers['x-forwarded-for'] || req.ip || 'unknown').split(',')[0].trim()
@@ -36,36 +33,52 @@ router.get('/', async (req, res) => {
     }
 
     const expires_at = getWindowExpiry()
+    const now        = new Date().toISOString()
 
     try {
-        // ── Look for an existing key for this session in the current window ────
-        const { data: existing, error } = await supabase
+        // ── Look for an existing VALID (non-expired) key for this session ─────
+        // BUG FIX 1: Old code used .eq('expires_at', expires_at) which only matched
+        // keys with the exact current window expiry timestamp. Keys issued just before
+        // a rotation had a different expires_at, so the lookup missed them and generated
+        // a brand new key every visit — users got different keys each time they opened
+        // the page, then wondered why their key didn't work (they were using an old one).
+        // Fix: .gt('expires_at', now) — return any key for this session that's still valid.
+        const { data: existing, error: lookupError } = await supabase
             .from('issued_keys')
             .select('*')
             .eq('session_id', session_id)
-            .eq('expires_at', expires_at)
+            .gt('expires_at', now)
             .maybeSingle()
 
-        if (error) throw error
-
-        if (existing) {
-            // Same session, same window — return the exact same key
+        // BUG FIX 2: Old code threw on any lookup error, returning 500 to the browser.
+        // If the session_id column doesn't exist in your DB schema (common if the table
+        // was created before this column was added), every single page visit 500'd and
+        // showed "Server error" instead of a key. Fix: log and fall through to generation.
+        if (lookupError) {
+            console.error('[get-user-key] session lookup error:', lookupError.message)
+            // fall through to generate a new key below
+        } else if (existing) {
             return res.json({ key: existing.key, expires_at: existing.expires_at, fresh: false })
         }
 
-        // ── New session or new window — generate a fresh key ──────────────────
+        // ── Generate a fresh key ──────────────────────────────────────────────
         const key = generateKey()
 
         const { error: insertError } = await supabase
             .from('issued_keys')
             .insert({ key, session_id, ip_address: ip, expires_at })
 
-        if (insertError) throw insertError
+        if (insertError) {
+            // If insert fails, still return the key so the user isn't hard-blocked.
+            // They just won't get the same key on refresh — acceptable fallback.
+            console.error('[get-user-key] insert error:', insertError.message)
+            return res.json({ key, expires_at, fresh: true })
+        }
 
         return res.json({ key, expires_at, fresh: true })
 
     } catch (err) {
-        console.error('[get-user-key]', err)
+        console.error('[get-user-key] unexpected error:', err)
         return res.status(500).json({ error: 'Server error.' })
     }
 })
