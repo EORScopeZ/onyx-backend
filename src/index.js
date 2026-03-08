@@ -19,6 +19,7 @@ const getkeyRoute         = require('./routes/getkey')
 const getUserKeyRoute     = require('./routes/get-user-key')
 const rotateKeysRoute     = require('./routes/rotate-keys')
 const issueManualKeyRoute = require('./routes/issue-manual-key')
+const resetHwidRoute      = require('./routes/reset-hwid')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -62,6 +63,7 @@ app.use('/api/set-nametag',       setNametagRoute)
 app.use('/api/status',            statusRoute)
 app.use('/api/rotate-all-keys',   rotateKeysRoute)
 app.use('/api/issue-manual-key',  issueManualKeyRoute)
+app.use('/api/reset-hwid',        resetHwidRoute)
 
 // ── Bare routes (bot calls without /api/ prefix) ────────────────────────────
 app.use('/whitelist',         whitelistRoute)
@@ -77,6 +79,7 @@ app.use('/create-key',        setGlobalKeyRoute)
 app.use('/api/create-key',    setGlobalKeyRoute)
 app.use('/rotate-all-keys',   rotateKeysRoute)
 app.use('/issue-manual-key',  issueManualKeyRoute)
+app.use('/reset-hwid',        resetHwidRoute)
 
 // ── Roblox client routes (called from Lua) ──────────────────────────────────
 app.use('/validate-user',       validateRoute)
@@ -97,6 +100,27 @@ app.get('/registered-users', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Internal error' }) }
 })
 
-app.listen(process.env.PORT || 3000, () => {
+// ── Wipe all keys on startup ──────────────────────────────────────────────────
+// Every time the backend restarts (deploy, crash, Railway redeploy) all issued
+// keys are cleared. Users just visit /getkey to get a fresh one immediately.
+async function wipeKeysOnStartup() {
+    try {
+        const { error, count } = await supabase
+            .from('issued_keys')
+            .delete({ count: 'exact' })
+            .neq('id', 0)
+
+        if (error) {
+            console.error('[startup] Failed to wipe keys:', error.message)
+        } else {
+            console.log(`[startup] Wiped ${count ?? '?'} keys on restart. Everyone gets a fresh key.`)
+        }
+    } catch (err) {
+        console.error('[startup] Key wipe threw:', err.message)
+    }
+}
+
+app.listen(process.env.PORT || 3000, async () => {
     console.log(`Onyx backend running on port ${process.env.PORT || 3000}`)
+    await wipeKeysOnStartup()
 })
