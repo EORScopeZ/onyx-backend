@@ -8,13 +8,26 @@ router.post('/', async (req, res) => {
     if (!roblox_username) return res.json({ ok: false })
 
     try {
-        await supabase
+        // Try insert first so new users get nametag_enabled: true
+        const { error: insertError } = await supabase
             .from('users')
-            .upsert({
+            .insert({
                 roblox_username,
+                nametag_enabled: true,
                 last_heartbeat: new Date().toISOString(),
                 job_id: job_id || null
-            }, { onConflict: 'roblox_username' })
+            })
+
+        if (insertError) {
+            // User already exists — update heartbeat only, don't touch nametag_enabled
+            await supabase
+                .from('users')
+                .update({
+                    last_heartbeat: new Date().toISOString(),
+                    job_id: job_id || null
+                })
+                .ilike('roblox_username', roblox_username)
+        }
 
         return res.json({ ok: true })
 
