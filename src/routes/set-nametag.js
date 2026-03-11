@@ -20,33 +20,40 @@ router.post('/', async (req, res) => {
     if (!roblox_username)
         return res.status(400).json({ error: 'roblox_username required.' })
 
-    // Handle disable / delete
+    // Handle delete — null out ALL nametag fields so get-nametag returns nothing
     if (req.body.delete === true || req.body.enabled === false) {
         const { error } = await supabase
             .from('users')
-            .update({ nametag_enabled: false })
+            .update({
+                nametag_enabled:  false,
+                nametag_text:     null,
+                nametag_color:    null,
+                nametag_effect:   null,
+                tag_image:        null,
+                icon_image:       null,
+                outline_color:    null,
+                background_color: null,
+            })
             .ilike('roblox_username', roblox_username)
 
         if (error) { console.error(error); return res.status(500).json({ error: 'Server error.' }) }
-        return res.json({ ok: true, nametag_enabled: false })
+        return res.json({ ok: true, deleted: true })
     }
 
     // Bot sends config nested under req.body.config
     const cfg = req.body.config || req.body
 
-    // Map all possible field name variants from the bot
     const updates = {
-        nametag_enabled: true,
-        nametag_text: (cfg.nametag_text || cfg.text || cfg.name_text || null),
-        nametag_color: validHex(cfg.nametag_color || cfg.color || cfg.name_color) || '#8b7fff',
-        nametag_effect: (cfg.glitch_anim === true || cfg.glitch_anim === 'true') ? 'glitch' : (cfg.nametag_effect || cfg.effect || null),
-        tag_image: cfg.image_url || null,
-        icon_image: cfg.icon_image || null,
-        outline_color: validHex(cfg.outline_color || cfg.glow_color) || '#8b7fff',
+        nametag_enabled:  true,
+        nametag_text:     (cfg.nametag_text || cfg.text || cfg.name_text || null),
+        nametag_color:    validHex(cfg.nametag_color || cfg.color || cfg.name_color) || '#8b7fff',
+        nametag_effect:   (cfg.glitch_anim === true || cfg.glitch_anim === 'true') ? 'glitch' : (cfg.nametag_effect || cfg.effect || null),
+        tag_image:        cfg.image_url || null,
+        icon_image:       cfg.icon_image || null,
+        outline_color:    validHex(cfg.outline_color || cfg.glow_color) || '#8b7fff',
         background_color: validHex(cfg.tag_color || cfg.backgroundColor) || '#0f0f0f',
     }
 
-    // Trim nametag text to 64 chars
     if (updates.nametag_text) updates.nametag_text = updates.nametag_text.slice(0, 64)
 
     try {
