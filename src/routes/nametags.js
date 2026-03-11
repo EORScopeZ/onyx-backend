@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
         const { data, error } = await supabase
             .from('users')
             .select('roblox_username, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, nametag_enabled')
-            .neq('nametag_enabled', false)  // include custom tags (true) AND default users (null), exclude only explicitly disabled
+            .or('nametag_enabled.eq.true,nametag_enabled.is.null')  // include custom (true) + default users (null), exclude disabled (false)
 
         if (error) throw error
 
