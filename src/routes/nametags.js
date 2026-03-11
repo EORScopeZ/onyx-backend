@@ -7,13 +7,13 @@ router.get('/', async (req, res) => {
         const { data, error } = await supabase
             .from('users')
             .select('roblox_username, nametag_text, nametag_color, nametag_effect, tag_image, icon_image, outline_color, background_color, nametag_enabled')
-            .eq('nametag_enabled', true)  // only return active nametags
+            .neq('nametag_enabled', false)  // include custom tags (true) AND default users (null), exclude only explicitly disabled
 
         if (error) throw error
 
         const nametags = data.map(u => ({
             roblox_user:   u.roblox_username,
-            name_text:     u.nametag_text,
+            name_text:     u.nametag_text    || 'Onyx User',
             name_color:    u.nametag_color,
             tag_color:     u.background_color || '#0f0f0f',
             glow_color:    u.outline_color    || '#8b7fff',
