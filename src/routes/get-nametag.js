@@ -16,24 +16,24 @@ router.get('/:username', async (req, res) => {
             .limit(1)
             .maybeSingle()
 
-        if (!user)
+        // Not found OR nametag was deleted/disabled
+        if (!user || user.nametag_enabled === false)
             return res.json({ found: false })
 
-        // Debug: log exactly what's stored for this user's images
         console.log(`[get-nametag] ${roblox_username} → tag_image=${user.tag_image}, icon_image=${user.icon_image}`)
 
         return res.json({
-            found: true,
-            active: true, // Execution gate is handled by /registered-users heartbeat filter
+            found:  true,
+            active: true,
             config: {
-                name_text: user.nametag_text || "Onyx User",
-                name_color: user.nametag_color || "#ffffff",
-                tag_color: user.background_color || "#0f0f0f",
-                glow_color: user.outline_color || "#8b7fff",
-                outline_color: user.outline_color || "#8b7fff",
-                image_url: user.tag_image,
-                icon_image: user.icon_image,
-                glitch_anim: user.nametag_effect === "glitch" ? true : false,
+                name_text:     user.nametag_text    || 'Onyx User',
+                name_color:    user.nametag_color   || '#ffffff',
+                tag_color:     user.background_color || '#0f0f0f',
+                glow_color:    user.outline_color   || '#8b7fff',
+                outline_color: user.outline_color   || '#8b7fff',
+                image_url:     user.tag_image,
+                icon_image:    user.icon_image,
+                glitch_anim:   user.nametag_effect === 'glitch',
             }
         })
 
